@@ -199,6 +199,7 @@
         let model, webcam, labelContainer, maxPredictions;
         let animationFrameId = null;
         let isRunning = false;
+        let currentStream = null;
 
         // Carregar o modelo e configurar a webcam
         async function init() {
@@ -220,25 +221,45 @@
                 // Criar webcam
                 webcam = new tmImage.Webcam(400, 400, flip);
                 
-                // Se for mobile, tentar usar câmera traseira
+                // Configurar acesso à câmera
                 if (isMobile) {
+                    // Para mobile, usar getUserMedia com câmera traseira
                     try {
-                        // Obter stream da câmera traseira
                         const stream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: { ideal: "environment" } },
+                            video: {
+                                facingMode: { ideal: "environment" },
+                                width: { ideal: 400 },
+                                height: { ideal: 400 }
+                            },
                             audio: false
                         });
-                        await webcam.setupWithStream(stream);
+                        currentStream = stream;
+                        // Usar o stream obtido para configurar a webcam
+                        webcam.canvas.getContext("2d").canvas.style.display = "none";
+                        const video = document.createElement("video");
+                        video.srcObject = stream;
+                        video.play();
+                        
+                        // Substituir o método update para usar nosso vídeo
+                        const ctx = webcam.canvas.getContext("2d");
+                        webcam.update = function() {
+                            ctx.drawImage(video, 0, 0, 400, 400);
+                        };
+                        
+                        isRunning = true;
                     } catch (err) {
-                        console.warn("Câmera traseira não disponível, usando padrão");
+                        console.warn("Não foi possível usar câmera traseira, usando padrão:", err);
+                        // Fallback para câmera padrão
                         await webcam.setup();
+                        await webcam.play();
+                        isRunning = true;
                     }
                 } else {
+                    // Para desktop
                     await webcam.setup();
+                    await webcam.play();
+                    isRunning = true;
                 }
-                
-                await webcam.play();
-                isRunning = true;
 
                 // Atualizar UI
                 loading.classList.remove("active");
@@ -271,7 +292,15 @@
                 loop();
             } catch (error) {
                 console.error("Erro ao inicializar:", error);
-                alert("Erro ao acessar a câmera: " + error.message + "\n\nVerifique as permissões.");
+                let mensagem = "Erro ao acessar a câmera";
+                if (error.name === "NotAllowedError") {
+                    mensagem = "Você negou acesso à câmera. Revogue a permissão e tente novamente.";
+                } else if (error.name === "NotFoundError") {
+                    mensagem = "Nenhuma câmera encontrada no seu dispositivo.";
+                } else if (error.message) {
+                    mensagem = "Erro: " + error.message;
+                }
+                alert(mensagem);
                 document.getElementById("loading").classList.remove("active");
                 stop();
             }
@@ -282,6 +311,10 @@
             isRunning = false;
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
+            }
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
             }
             if (webcam) {
                 webcam.stop();
