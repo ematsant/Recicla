@@ -213,26 +213,31 @@
                 model = await tmImage.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
 
-                // Configurar webcam com câmera traseira em celulares
+                // Detectar dispositivo móvel
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                const flip = !isMobile; // Não flip em celular (câmera traseira)
+                const flip = !isMobile;
                 
+                // Criar webcam
                 webcam = new tmImage.Webcam(400, 400, flip);
                 
-                // Solicitar acesso à câmera traseira em dispositivos móveis
-                const constraints = {
-                    video: {
-                        facingMode: isMobile ? "environment" : "user",
-                        width: { ideal: 400 },
-                        height: { ideal: 400 }
-                    },
-                    audio: false
-                };
-
-                // Setup da webcam com restrições personalizadas
-                await webcam.setup(constraints);
-                await webcam.play();
+                // Se for mobile, tentar usar câmera traseira
+                if (isMobile) {
+                    try {
+                        // Obter stream da câmera traseira
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: { ideal: "environment" } },
+                            audio: false
+                        });
+                        await webcam.setupWithStream(stream);
+                    } catch (err) {
+                        console.warn("Câmera traseira não disponível, usando padrão");
+                        await webcam.setup();
+                    }
+                } else {
+                    await webcam.setup();
+                }
                 
+                await webcam.play();
                 isRunning = true;
 
                 // Atualizar UI
@@ -243,12 +248,12 @@
 
                 // Adicionar canvas à página
                 const container = document.getElementById("webcam-container");
-                container.innerHTML = ""; // Limpar container
+                container.innerHTML = "";
                 container.appendChild(webcam.canvas);
 
                 // Criar elementos para labels
                 labelContainer = document.getElementById("label-container");
-                labelContainer.innerHTML = ""; // Limpar labels anteriores
+                labelContainer.innerHTML = "";
                 
                 for (let i = 0; i < maxPredictions; i++) {
                     const div = document.createElement("div");
@@ -266,8 +271,9 @@
                 loop();
             } catch (error) {
                 console.error("Erro ao inicializar:", error);
-                alert("Erro ao acessar a câmera. Verifique as permissões.");
+                alert("Erro ao acessar a câmera: " + error.message + "\n\nVerifique as permissões.");
                 document.getElementById("loading").classList.remove("active");
+                stop();
             }
         }
 
@@ -307,5 +313,7 @@
                 
                 label.textContent = `${prediction[i].className}: ${probability}%`;
                 progressBar.style.width = `${probability}%`;
-    }
-</script>
+            }
+        }
+    </script>
+
