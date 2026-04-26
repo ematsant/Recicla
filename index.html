@@ -223,39 +223,108 @@
                 
                 // Configurar acesso à câmera
                 if (isMobile) {
-                    // Para mobile, usar getUserMedia com câmera traseira
+                    // Para mobile, tentar vários métodos
+                    let cameraSuccessful = false;
+                    
+                    // Primeiro, tentar usar a biblioteca Teachable Machine padrão com setup
                     try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                facingMode: { ideal: "environment" },
-                                width: { ideal: 400 },
-                                height: { ideal: 400 }
-                            },
-                            audio: false
-                        });
-                        currentStream = stream;
-                        // Usar o stream obtido para configurar a webcam
-                        webcam.canvas.getContext("2d").canvas.style.display = "none";
-                        const video = document.createElement("video");
-                        video.srcObject = stream;
-                        video.play();
-                        
-                        // Substituir o método update para usar nosso vídeo
-                        const ctx = webcam.canvas.getContext("2d");
-                        webcam.update = function() {
-                            ctx.drawImage(video, 0, 0, 400, 400);
-                        };
-                        
-                        isRunning = true;
-                    } catch (err) {
-                        console.warn("Não foi possível usar câmera traseira, usando padrão:", err);
-                        // Fallback para câmera padrão
+                        console.log("Tentando webcam.setup() padrão...");
                         await webcam.setup();
                         await webcam.play();
                         isRunning = true;
+                        cameraSuccessful = true;
+                        console.log("webcam.setup() funcionou!");
+                    } catch (err) {
+                        console.warn("webcam.setup() falhou:", err);
+                    }
+                    
+                    // Se falhar, tentar com constraints personalizadas
+                    if (!cameraSuccessful) {
+                        try {
+                            console.log("Tentando getUserMedia com câmera traseira...");
+                            const stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    facingMode: { ideal: "environment" }
+                                },
+                                audio: false
+                            });
+                            currentStream = stream;
+                            
+                            // Criar elemento de vídeo
+                            const video = document.createElement("video");
+                            video.setAttribute("autoplay", "true");
+                            video.setAttribute("muted", "true");
+                            video.setAttribute("playsinline", "true");
+                            video.srcObject = stream;
+                            
+                            // Aguardar o vídeo estar pronto
+                            await new Promise((resolve) => {
+                                video.onloadedmetadata = () => {
+                                    video.play();
+                                    resolve();
+                                };
+                            });
+                            
+                            // Substituir o método update para usar nosso vídeo
+                            const ctx = webcam.canvas.getContext("2d");
+                            webcam.update = function() {
+                                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                    ctx.drawImage(video, 0, 0, 400, 400);
+                                }
+                            };
+                            
+                            isRunning = true;
+                            cameraSuccessful = true;
+                            console.log("getUserMedia com câmera traseira funcionou!");
+                        } catch (err) {
+                            console.warn("getUserMedia com câmera traseira falhou:", err);
+                        }
+                    }
+                    
+                    // Se ainda falhar, tentar getUserMedia sem constraints
+                    if (!cameraSuccessful) {
+                        try {
+                            console.log("Tentando getUserMedia padrão sem constraints...");
+                            const stream = await navigator.mediaDevices.getUserMedia({
+                                video: true,
+                                audio: false
+                            });
+                            currentStream = stream;
+                            
+                            const video = document.createElement("video");
+                            video.setAttribute("autoplay", "true");
+                            video.setAttribute("muted", "true");
+                            video.setAttribute("playsinline", "true");
+                            video.srcObject = stream;
+                            
+                            await new Promise((resolve) => {
+                                video.onloadedmetadata = () => {
+                                    video.play();
+                                    resolve();
+                                };
+                            });
+                            
+                            const ctx = webcam.canvas.getContext("2d");
+                            webcam.update = function() {
+                                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                    ctx.drawImage(video, 0, 0, 400, 400);
+                                }
+                            };
+                            
+                            isRunning = true;
+                            cameraSuccessful = true;
+                            console.log("getUserMedia padrão funcionou!");
+                        } catch (err) {
+                            console.warn("getUserMedia padrão também falhou:", err);
+                        }
+                    }
+                    
+                    if (!cameraSuccessful) {
+                        throw new Error("Não foi possível acessar a câmera após tentar todos os métodos.");
                     }
                 } else {
                     // Para desktop
+                    console.log("Detectado desktop, usando webcam.setup()...");
                     await webcam.setup();
                     await webcam.play();
                     isRunning = true;
@@ -293,13 +362,17 @@
             } catch (error) {
                 console.error("Erro ao inicializar:", error);
                 let mensagem = "Erro ao acessar a câmera";
+                
                 if (error.name === "NotAllowedError") {
                     mensagem = "Você negou acesso à câmera. Revogue a permissão e tente novamente.";
                 } else if (error.name === "NotFoundError") {
                     mensagem = "Nenhuma câmera encontrada no seu dispositivo.";
+                } else if (error.name === "SecurityError") {
+                    mensagem = "Conexão insegura. Use HTTPS ou localhost.";
                 } else if (error.message) {
-                    mensagem = "Erro: " + error.message;
+                    mensagem = error.message;
                 }
+                
                 alert(mensagem);
                 document.getElementById("loading").classList.remove("active");
                 stop();
