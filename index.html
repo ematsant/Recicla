@@ -88,6 +88,18 @@
             box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
         }
 
+        #toggleCameraBtn {
+            background: #4CAF50;
+            color: white;
+            display: none;
+        }
+
+        #toggleCameraBtn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(76, 175, 80, 0.4);
+        }
+
         #webcam-container {
             margin-bottom: 25px;
             border-radius: 15px;
@@ -202,6 +214,7 @@
         let isRunning = false;
         let currentStream = null;
         let currentFacingMode = "environment"; // Rastrear câmera atual
+        let availableCameras = { front: false, back: false }; // Rastrear câmeras disponíveis
 
         // Carregar o modelo e configurar a webcam
         async function init() {
@@ -215,6 +228,26 @@
                 // Carregar o modelo e metadados
                 model = await tmImage.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
+
+                // Detectar câmeras disponíveis
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    console.log(`Câmeras encontradas: ${videoDevices.length}`);
+                    videoDevices.forEach((device, index) => {
+                        console.log(`Câmera ${index}: ${device.label}`);
+                    });
+                    
+                    // Se temos mais de uma câmera, provavelmente temos front e back
+                    if (videoDevices.length > 1) {
+                        availableCameras.front = true;
+                        availableCameras.back = true;
+                    } else if (videoDevices.length === 1) {
+                        availableCameras.front = true;
+                    }
+                } catch (err) {
+                    console.warn("Não foi possível enumerar câmeras:", err);
+                }
 
                 // Detectar dispositivo móvel
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -278,6 +311,7 @@
                             isRunning = true;
                             cameraSuccessful = true;
                             currentFacingMode = "environment";
+                            availableCameras.back = true;
                             console.log("getUserMedia com câmera traseira (exact) funcionou!");
                         } catch (err) {
                             console.warn("getUserMedia com câmera traseira (exact) falhou:", err);
@@ -322,6 +356,7 @@
                             isRunning = true;
                             cameraSuccessful = true;
                             currentFacingMode = "environment";
+                            availableCameras.back = true;
                             console.log("getUserMedia com câmera traseira (ideal) funcionou!");
                         } catch (err) {
                             console.warn("getUserMedia com câmera traseira (ideal) falhou:", err);
@@ -382,7 +417,13 @@
                 loading.classList.remove("active");
                 document.getElementById("startBtn").style.display = "none";
                 document.getElementById("stopBtn").style.display = "inline-block";
-                document.getElementById("toggleCameraBtn").style.display = "inline-block";
+                
+                // Mostrar botão de alternar câmera apenas se houver múltiplas câmeras
+                if (availableCameras.front && availableCameras.back) {
+                    document.getElementById("toggleCameraBtn").style.display = "inline-block";
+                    document.getElementById("toggleCameraBtn").textContent = `🔄 Trocar para câmera ${currentFacingMode === "environment" ? "frontal" : "traseira"}`;
+                }
+                
                 document.getElementById("webcam-container").classList.add("active");
 
                 // Adicionar canvas à página
@@ -441,15 +482,62 @@
                 
                 // Alternar facing mode
                 const newFacingMode = currentFacingMode === "environment" ? "user" : "environment";
-                console.log(`Alternando para câmera: ${newFacingMode}`);
+                const cameraName = newFacingMode === "environment" ? "traseira" : "frontal";
+                console.log(`Alternando para câmera: ${cameraName}`);
                 
-                // Obter novo stream
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: { ideal: newFacingMode }
-                    },
-                    audio: false
-                });
+                let streamObtido = false;
+                let stream = null;
+                
+                // Tentar com exact primeiro
+                try {
+                    console.log(`Tentando obtener câmera ${cameraName} com exact...`);
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { exact: newFacingMode }
+                        },
+                        audio: false
+                    });
+                    streamObtido = true;
+                    console.log(`Câmera ${cameraName} obtida com exact!`);
+                } catch (err) {
+                    console.warn(`Exact falhou, tentando com ideal...`, err);
+                }
+                
+                // Se falhar, tentar com ideal
+                if (!streamObtido) {
+                    try {
+                        console.log(`Tentando obter câmera ${cameraName} com ideal...`);
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                facingMode: { ideal: newFacingMode }
+                            },
+                            audio: false
+                        });
+                        streamObtido = true;
+                        console.log(`Câmera ${cameraName} obtida com ideal!`);
+                    } catch (err) {
+                        console.warn(`Ideal também falhou...`, err);
+                    }
+                }
+                
+                // Se ainda falhar, tentar sem constraints (aceita qualquer câmera)
+                if (!streamObtido) {
+                    try {
+                        console.log(`Tentando obter qualquer câmera sem constraints...`);
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: false
+                        });
+                        streamObtido = true;
+                        console.log(`Câmera obtida sem constraints!`);
+                    } catch (err) {
+                        console.warn(`Nenhuma câmera disponível...`, err);
+                    }
+                }
+                
+                if (!streamObtido) {
+                    throw new Error(`Não foi possível acessar a câmera ${cameraName}. Pode ser que seu dispositivo não tenha câmera traseira disponível.`);
+                }
                 
                 currentStream = stream;
                 currentFacingMode = newFacingMode;
@@ -462,8 +550,13 @@
                 video.srcObject = stream;
                 
                 // Aguardar vídeo estar pronto
-                await new Promise((resolve) => {
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error("Timeout ao carregar vídeo da câmera"));
+                    }, 5000);
+                    
                     video.onloadedmetadata = () => {
+                        clearTimeout(timeout);
                         video.play();
                         resolve();
                     };
@@ -477,10 +570,15 @@
                     }
                 };
                 
-                console.log(`Câmera alternada com sucesso para: ${newFacingMode}`);
+                console.log(`Câmera alternada com sucesso para: ${cameraName}`);
+                
+                // Atualizar texto do botão para indicar qual câmera está em uso
+                const toggleBtn = document.getElementById("toggleCameraBtn");
+                toggleBtn.textContent = `🔄 Trocar para câmera ${currentFacingMode === "environment" ? "frontal" : "traseira"}`;
+                
             } catch (error) {
                 console.error("Erro ao alternar câmera:", error);
-                alert("Não foi possível alternar para a câmera " + (currentFacingMode === "environment" ? "frontal" : "traseira"));
+                alert(error.message || "Não foi possível alternar a câmera. Verifique se seu dispositivo tem câmera traseira disponível.");
             }
         }
 
