@@ -1,0 +1,87 @@
+/* Configuração Geral */
+body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+}
+
+h1 {
+    color: #1a73e8;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+/* Estilização dos Botões */
+button {
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+    margin-bottom: 20px;
+}
+
+button:hover {
+    background-color: #1557b0;
+}
+
+/* Estilo específico para o botão de sair */
+.btn-sair {
+    background-color: #dc3545 !important;
+}
+
+.btn-sair:hover {
+    background-color: #c82333 !important;
+}
+
+/* Estilização da Câmera */
+#webcam-container {
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0 auto 20px;
+    border: 3px solid #e8eaed;
+    background-color: #000;
+    line-height: 0;
+}
+
+#webcam-container canvas {
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Estilização dos Resultados */
+#label-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#label-container div {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 5px solid #34a853;
+    font-weight: 500;
+    color: #3c4043;
+    display: flex;
+    justify-content: space-between;
+}
