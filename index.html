@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Classificador Teachable Machine</title>
     <style>
-        /* CSS (Cascading Style Sheets) para melhorar o aspecto visual */
+        /* CSS (Cascading Style Sheets) */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
@@ -33,12 +33,6 @@
             margin-bottom: 20px;
             margin-top: 0;
         }
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
         button {
             background-color: #007bff;
             color: white;
@@ -48,8 +42,9 @@
             font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s;
-            flex: 1;
+            width: 100%;
             font-weight: bold;
+            margin-bottom: 20px;
         }
         button:hover {
             background-color: #0056b3;
@@ -88,10 +83,7 @@
 
 <div class="container">
     <h1>Análise de Imagem</h1>
-    <div class="controls">
-        <button id="btn-start" type="button" onclick="init()">Iniciar Câmera</button>
-        <button id="btn-switch" type="button" onclick="switchCamera()" disabled>Inverter Câmera</button>
-    </div>
+    <button id="btn-start" type="button" onclick="init()">Iniciar Câmera Traseira</button>
     <div id="webcam-container"></div>
     <div id="label-container"></div>
 </div>
@@ -99,17 +91,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="text/javascript">
-    // URL (Uniform Resource Locator) com o diretório do modelo exportado
     const URL = "./my_model/";
 
     let model, webcam, labelContainer, maxPredictions;
-    let isPlaying = false;
-    
-    // Configuração inicial para priorizar a câmera traseira em dispositivos móveis
-    let currentFacingMode = "environment"; 
 
     async function init() {
-        // Atualiza a UI (User Interface) durante o carregamento
         document.getElementById("btn-start").disabled = true;
         document.getElementById("btn-start").innerText = "Carregando...";
 
@@ -119,63 +105,43 @@
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
 
-        await setupWebcam();
+        // flip = false para a câmera traseira (para não espelhar a imagem e os textos)
+        const flip = false;
+        webcam = new tmImage.Webcam(250, 250, flip);
+
+        // Força o uso exclusivo da câmera traseira (environment)
+        await webcam.setup({ facingMode: "environment" });
+        await webcam.play();
+        window.requestAnimationFrame(loop);
+
+        // Manipulação do DOM (Document Object Model) para injetar a câmera
+        document.getElementById("webcam-container").innerHTML = "";
+        document.getElementById("webcam-container").appendChild(webcam.canvas);
 
         labelContainer = document.getElementById("label-container");
-        labelContainer.innerHTML = ""; 
+        labelContainer.innerHTML = "";
         for (let i = 0; i < maxPredictions; i++) {
             let div = document.createElement("div");
             div.className = "label-row";
             labelContainer.appendChild(div);
         }
 
-        // Habilita o botão de inversão de câmera e esconde o botão de iniciar
-        document.getElementById("btn-switch").disabled = false;
+        // Esconde o botão após iniciar
         document.getElementById("btn-start").style.display = "none";
     }
 
-    async function setupWebcam() {
-        if (webcam) {
-            webcam.stop(); // Encerra o feed atual da câmera ao alternar
-        }
-
-        // Se for a câmera traseira, não espelha a imagem (flip = false)
-        const flip = currentFacingMode === "user"; 
-        webcam = new tmImage.Webcam(250, 250, flip);
-
-        // A API (Application Programming Interface) do Teachable Machine aceita as opções de facingMode
-        await webcam.setup({ facingMode: currentFacingMode }); 
-        await webcam.play();
-        
-        const webcamContainer = document.getElementById("webcam-container");
-        webcamContainer.innerHTML = ""; 
-        webcamContainer.appendChild(webcam.canvas);
-        
-        if (!isPlaying) {
-            isPlaying = true;
-            window.requestAnimationFrame(loop);
-        }
-    }
-
-    async function switchCamera() {
-        // Alterna a variável de controle entre câmera frontal (user) e traseira (environment)
-        currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
-        await setupWebcam();
-    }
-
     async function loop() {
-        if (isPlaying) {
-            webcam.update();
-            await predict();
-            window.requestAnimationFrame(loop);
-        }
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
     }
 
     async function predict() {
         const prediction = await model.predict(webcam.canvas);
         for (let i = 0; i < maxPredictions; i++) {
-            // Converte a probabilidade em porcentagem para facilitar a leitura
-            const percent = (prediction[i].probability * 100).toFixed(0);
+            // Utilizando .toFixed(2) para mostrar os decimais. 
+            // Isso cria a percepção visual de atualização contínua em tempo real.
+            const percent = (prediction[i].probability * 100).toFixed(2);
             const classPrediction = `${prediction[i].className}: ${percent}%`;
             labelContainer.childNodes[i].innerHTML = classPrediction;
         }
