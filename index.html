@@ -3,325 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classificador de Imagens</title>
+    <title>Classificador Teachable Machine</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /* CSS (Cascading Style Sheets) para melhorar o aspecto visual */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background-color: #f4f7f6;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            min-height: 100vh;
+            margin: 0;
             padding: 20px;
+            box-sizing: border-box;
         }
-
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            max-width: 600px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
             width: 100%;
         }
-
         h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            color: #333333;
+            font-size: 24px;
+            margin-bottom: 20px;
+            margin-top: 0;
         }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-
-        .button-container {
+        .controls {
             display: flex;
             gap: 10px;
-            margin-bottom: 30px;
             justify-content: center;
+            margin-bottom: 20px;
         }
-
         button {
-            padding: 14px 32px;
-            font-size: 16px;
-            font-weight: 600;
+            background-color: #007bff;
+            color: white;
             border: none;
-            border-radius: 10px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 140px;
+            transition: background-color 0.3s;
+            flex: 1;
+            font-weight: bold;
         }
-
-        #startBtn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        button:hover {
+            background-color: #0056b3;
         }
-
-        #startBtn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
-
-        #startBtn:active {
-            transform: translateY(0);
-        }
-
-        #stopBtn {
-            background: #ff6b6b;
-            color: white;
-            display: none;
-        }
-
-        #stopBtn:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
-        }
-
         #webcam-container {
-            margin-bottom: 25px;
-            border-radius: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
             overflow: hidden;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            border: 2px solid #dddddd;
+            background-color: #eeeeee;
         }
-
-        #webcam-container.active {
+        #webcam-container canvas {
             display: block;
-        }
-
-        #webcam-container video {
-            width: 100%;
+            max-width: 100%;
             height: auto;
-            display: block;
         }
-
-        #label-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-
-        .prediction-item {
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-            transition: all 0.3s ease;
-        }
-
-        .prediction-item:hover {
-            background: #f0f1ff;
-            transform: translateX(5px);
-        }
-
-        .prediction-label {
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .prediction-bar {
+        .label-row {
+            display: flex;
+            justify-content: space-between;
             background: #e9ecef;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .prediction-progress {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            height: 100%;
-            transition: width 0.3s ease;
-            border-radius: 4px;
-        }
-
-        .loading {
-            text-align: center;
-            color: #666;
-            display: none;
-            font-size: 14px;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 25px;
-                border-radius: 15px;
-            }
-
-            h1 {
-                font-size: 24px;
-            }
-
-            button {
-                padding: 12px 24px;
-                font-size: 14px;
-            }
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            color: #495057;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔍 Classificador de Imagens</h1>
-        <p class="subtitle">Seu modelo de IA em tempo real</p>
-        
-        <div class="button-container">
-            <button type="button" id="startBtn" onclick="init()">▶ Iniciar</button>
-            <button type="button" id="stopBtn" onclick="stop()">⏹ Parar</button>
-        </div>
 
-        <div class="loading" id="loading">Carregando modelo...</div>
-        <div id="webcam-container">
-            <video id="webcam" autoplay playsinline muted></video>
-        </div>
-        <div id="label-container"></div>
+<div class="container">
+    <h1>Análise de Imagem</h1>
+    <div class="controls">
+        <button id="btn-start" type="button" onclick="init()">Iniciar Câmera</button>
+        <button id="btn-switch" type="button" onclick="switchCamera()" disabled>Inverter Câmera</button>
     </div>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <script type="text/javascript">
-        // Configuração da API
-        const URL = "./my_model/";
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script type="text/javascript">
+    // URL (Uniform Resource Locator) com o diretório do modelo exportado
+    const URL = "./my_model/";
+
+    let model, webcam, labelContainer, maxPredictions;
+    let isPlaying = false;
+    
+    // Configuração inicial para priorizar a câmera traseira em dispositivos móveis
+    let currentFacingMode = "environment"; 
+
+    async function init() {
+        // Atualiza a UI (User Interface) durante o carregamento
+        document.getElementById("btn-start").disabled = true;
+        document.getElementById("btn-start").innerText = "Carregando...";
+
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        await setupWebcam();
+
+        labelContainer = document.getElementById("label-container");
+        labelContainer.innerHTML = ""; 
+        for (let i = 0; i < maxPredictions; i++) {
+            let div = document.createElement("div");
+            div.className = "label-row";
+            labelContainer.appendChild(div);
+        }
+
+        // Habilita o botão de inversão de câmera e esconde o botão de iniciar
+        document.getElementById("btn-switch").disabled = false;
+        document.getElementById("btn-start").style.display = "none";
+    }
+
+    async function setupWebcam() {
+        if (webcam) {
+            webcam.stop(); // Encerra o feed atual da câmera ao alternar
+        }
+
+        // Se for a câmera traseira, não espelha a imagem (flip = false)
+        const flip = currentFacingMode === "user"; 
+        webcam = new tmImage.Webcam(250, 250, flip);
+
+        // A API (Application Programming Interface) do Teachable Machine aceita as opções de facingMode
+        await webcam.setup({ facingMode: currentFacingMode }); 
+        await webcam.play();
         
-        // Variáveis globais
-        let model, maxPredictions;
-        let animationFrameId = null;
-        let isRunning = false;
-        let currentStream = null;
-        let videoElement = null;
-
-        // Carregar o modelo e configurar a webcam
-        async function init() {
-            try {
-                const loading = document.getElementById("loading");
-                loading.classList.add("active");
-
-                const modelURL = URL + "model.json";
-                const metadataURL = URL + "metadata.json";
-
-                // Carregar o modelo e metadados
-                model = await tmImage.load(modelURL, metadataURL);
-                maxPredictions = model.getTotalClasses();
-                
-                videoElement = document.getElementById("webcam");
-
-                // Tentar forçar a câmera traseira estritamente
-                let constraints = {
-                    video: { facingMode: { exact: "environment" } },
-                    audio: false
-                };
-
-                try {
-                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (err) {
-                    // Fallback caso o celular não aceite o parâmetro 'exact'
-                    constraints = {
-                        video: { facingMode: "environment" },
-                        audio: false
-                    };
-                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                }
-
-                videoElement.srcObject = currentStream;
-
-                // Aguardar o vídeo estar pronto
-                await new Promise((resolve) => {
-                    videoElement.onloadedmetadata = () => {
-                        videoElement.play();
-                        resolve();
-                    };
-                });
-
-                // Atualizar UI
-                loading.classList.remove("active");
-                document.getElementById("startBtn").style.display = "none";
-                document.getElementById("stopBtn").style.display = "inline-block";
-                document.getElementById("webcam-container").classList.add("active");
-
-                // Criar elementos para labels
-                const labelContainer = document.getElementById("label-container");
-                labelContainer.innerHTML = "";
-                
-                for (let i = 0; i < maxPredictions; i++) {
-                    const div = document.createElement("div");
-                    div.className = "prediction-item";
-                    div.innerHTML = `
-                        <div class="prediction-label">Classe ${i + 1}</div>
-                        <div class="prediction-bar">
-                            <div class="prediction-progress" style="width: 0%"></div>
-                        </div>
-                    `;
-                    labelContainer.appendChild(div);
-                }
-
-                isRunning = true;
-                // Iniciar loop de predição
-                loop();
-
-            } catch (error) {
-                console.error("Erro ao inicializar:", error);
-                alert("Erro ao acessar a câmera traseira. Verifique as permissões do navegador.");
-                document.getElementById("loading").classList.remove("active");
-                stop();
-            }
+        const webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.innerHTML = ""; 
+        webcamContainer.appendChild(webcam.canvas);
+        
+        if (!isPlaying) {
+            isPlaying = true;
+            window.requestAnimationFrame(loop);
         }
+    }
 
-        // Parar a webcam
-        function stop() {
-            isRunning = false;
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
-            }
-            if (videoElement) {
-                videoElement.srcObject = null;
-            }
-            
-            document.getElementById("startBtn").style.display = "inline-block";
-            document.getElementById("stopBtn").style.display = "none";
-            document.getElementById("webcam-container").classList.remove("active");
-            document.getElementById("label-container").innerHTML = "";
-        }
+    async function switchCamera() {
+        // Alterna a variável de controle entre câmera frontal (user) e traseira (environment)
+        currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+        await setupWebcam();
+    }
 
-        // Loop contínuo de predição
-        async function loop() {
-            if (!isRunning) return;
+    async function loop() {
+        if (isPlaying) {
+            webcam.update();
             await predict();
-            animationFrameId = window.requestAnimationFrame(loop);
+            window.requestAnimationFrame(loop);
         }
+    }
 
-        // Executar predição
-        async function predict() {
-            // O Teachable Machine aceita o elemento de vídeo nativo diretamente
-            const prediction = await model.predict(videoElement);
-            const labelContainer = document.getElementById("label-container");
-            
-            for (let i = 0; i < maxPredictions; i++) {
-                const probability = (prediction[i].probability * 100).toFixed(1);
-                const progressBar = labelContainer.childNodes[i].querySelector(".prediction-progress");
-                const label = labelContainer.childNodes[i].querySelector(".prediction-label");
-                
-                label.textContent = `${prediction[i].className}: ${probability}%`;
-                progressBar.style.width = `${probability}%`;
-            }
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);
+        for (let i = 0; i < maxPredictions; i++) {
+            // Converte a probabilidade em porcentagem para facilitar a leitura
+            const percent = (prediction[i].probability * 100).toFixed(0);
+            const classPrediction = `${prediction[i].className}: ${percent}%`;
+            labelContainer.childNodes[i].innerHTML = classPrediction;
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
