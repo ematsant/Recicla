@@ -1,1 +1,1 @@
-{"tfjsVersion":"1.7.4","tmVersion":"2.4.12","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2026-04-29T01:11:00.904Z","userMetadata":{},"modelName":"Recicla 01","labels":["Não reciclavel","pet"],"imageSize":224}
+{"tfjsVersion":"1.7.4","tmVersion":"2.4.13","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2026-04-30T02:03:03.343Z","userMetadata":{},"modelName":"Recicla 01","labels":["Não reciclavel","pet"],"imageSize":224}
